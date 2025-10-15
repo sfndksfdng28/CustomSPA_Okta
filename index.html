@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Okta Widget Force-Redirect Debug</title>
+  <title>Okta Widget Force-Redirect Debug (fixed)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-sign-in.min.css" rel="stylesheet" />
   <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-theme.css" rel="stylesheet" />
@@ -23,25 +23,16 @@
     <pre id="log" class="debug"></pre>
   </div>
 
-  <!-- Force fresh copy from CDN with timestamp to bust caches -->
-  <script>
-    (function() {
-      const t = Date.now();
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/@okta/okta-signin-widget@7.35.3/dist/js/okta-sign-in.min.js?_=' + t;
-      script.onload = initWidget;
-      script.onerror = function() {
-        document.getElementById('errors').innerHTML = '<div class="error">Failed to load widget script. Check network/CSP.</div>';
-        console.error('Failed to load okta-sign-in.min.js');
-      };
-      document.head.appendChild(script);
-    })();
-  </script>
-
   <!-- Okta Auth JS for callback (loaded separately) -->
   <script src="https://cdn.jsdelivr.net/npm/@okta/okta-auth-js@7.8.0/dist/okta-auth-js.min.js"></script>
 
   <script>
+    // --------- Configuration (edit these) ----------
+    const OKTA_DOMAIN = 'trial-4702613.okta.com';     // your Okta domain
+    const CLIENT_ID = '0oawflwp5euQKcPIN697';         // your client id
+    const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html'; // exact redirect uri in Okta
+    // ------------------------------------------------
+
     const logEl = document.getElementById('log');
     function dbg(msg, obj) {
       logEl.textContent += new Date().toISOString() + ' - ' + msg + (obj ? ' ' + JSON.stringify(obj, null, 2) : '') + '\n';
@@ -52,20 +43,14 @@
       dbg('ERROR: ' + text);
     }
 
-    // <--- EDIT THESE VALUES to match your Okta app EXACTLY --->
-    const OKTA_DOMAIN = 'trial-4702613.okta.com';     // example from your logs
-    const CLIENT_ID = '0oawflwp5euQKcPIN697';
-    const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html';
-    // ----------------------------------------------------------------
-
-    function initWidget() {
+    // Define initWidget on window so the dynamically-added script can call it safely
+    window.initWidget = function() {
       if (typeof OktaSignIn === 'undefined') {
         showError('OktaSignIn global missing after CDN load. Check network/CSP.');
         return;
       }
       dbg('OktaSignIn loaded (fresh).');
 
-      // Force classic + redirect-based flow
       const widget = new OktaSignIn({
         baseUrl: `https://${OKTA_DOMAIN}`,
         clientId: CLIENT_ID,
@@ -75,19 +60,17 @@
           issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
           responseType: ['code'],
           responseMode: 'query',      // FORCE redirect with code in query string
-          display: 'page',            // full page redirect
+          display: 'page',
           scopes: ['openid','profile','email'],
           pkce: true
         }
       });
 
-      // Hook into widget to log authorize url (works with this widget version)
       if (widget.settings && widget.settings.authParams) {
         dbg('Widget authParams:', widget.settings.authParams);
       }
 
-      // Monkey-patch to capture authorize request URL if possible
-      // (This prints URL just before render triggers auth flow)
+      // Optional: try to capture the authorize URL if widget exposes it
       const origGetAuthorizeUrl = widget.getAuthorizeUrl && widget.getAuthorizeUrl.bind(widget);
       if (origGetAuthorizeUrl) {
         widget.getAuthorizeUrl = function() {
@@ -118,7 +101,27 @@
         }
       );
       dbg('Widget init complete. Try signing in now.');
-    }
+    };
+
+    // Now inject the widget script with a cache-busting query param
+    (function injectWidgetScript() {
+      const t = Date.now();
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@okta/okta-signin-widget@7.35.3/dist/js/okta-sign-in.min.js?_=' + t;
+      script.onload = function() {
+        // call the init function we already defined on window
+        if (typeof window.initWidget === 'function') {
+          window.initWidget();
+        } else {
+          showError('initWidget not defined after widget script loaded.');
+        }
+      };
+      script.onerror = function() {
+        showError('Failed to load widget script. Check network/CSP.');
+        console.error('Failed to load okta-sign-in.min.js');
+      };
+      document.head.appendChild(script);
+    })();
   </script>
 </body>
 </html>
