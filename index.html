@@ -1,56 +1,50 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Okta Sign-In Widget Demo</title>
+  <title>Okta Widget Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Okta Sign-In Widget CSS -->
-  <link href="https://global.oktacdn.com/okta-signin-widget/6.19.0/css/okta-sign-in.min.css" rel="stylesheet" />
-  <link href="https://global.oktacdn.com/okta-signin-widget/6.19.0/css/okta-theme.css" rel="stylesheet" />
-  <style>
-    body { font-family: Arial, sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; }
-    #widget-container { width: 360px; }
-  </style>
+  <!-- CSS from Okta CDN (should be available) -->
+  <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-sign-in.min.css" rel="stylesheet" />
+  <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-theme.css" rel="stylesheet" />
+  <style>body{font-family:Arial,Helvetica,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh}#widget-container{width:360px}</style>
 </head>
 <body>
-  <div id="widget-container"></div>
+  <div id="widget-container">Loading widget…</div>
 
-  <!-- Okta Sign-In Widget + Okta Auth JS -->
-  <script src="https://global.oktacdn.com/okta-signin-widget/6.19.0/js/okta-sign-in.min.js"></script>
+  <!-- Use jsDelivr to load the JS (replace version if you want newer) -->
+  <script src="https://cdn.jsdelivr.net/npm/@okta/okta-signin-widget@7.35.3/dist/js/okta-sign-in.min.js"></script>
+
+  <!-- Okta Auth JS (optional, used on callback) -->
   <script src="https://cdn.jsdelivr.net/npm/@okta/okta-auth-js@7.8.0/dist/okta-auth-js.min.js"></script>
 
   <script>
-    // Replace with your actual values or use a build step injecting them
-    const OKTA_DOMAIN = 'trial-4702613.okta.com'; // e.g., dev-123456.okta.com
-    const CLIENT_ID = '0oawflwp5euQKcPIN697';
-    const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html'; // must match Okta app
+    if (typeof OktaSignIn === 'undefined') {
+      document.getElementById('widget-container').innerText = 'Okta Sign-In Widget did not load. Check network/CSP.';
+      console.error('OktaSignIn is undefined — check network tab for okta-sign-in.min.js');
+    } else {
+      // your widget config here...
+      const OKTA_DOMAIN = 'trial-4702613.okta.com';
+      const CLIENT_ID = '0oawflwp5euQKcPIN697';
+      const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html';
 
-    const widget = new OktaSignIn({
-      baseUrl: `https://${OKTA_DOMAIN}`,
-      clientId: CLIENT_ID,
-      redirectUri: REDIRECT_URI,
-      authParams: {
-        issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
-        responseType: ['code'],
-        scopes: ['openid', 'profile', 'email'],
-        pkce: true
-      }
-    });
+      const widget = new OktaSignIn({
+        baseUrl: `https://${OKTA_DOMAIN}`,
+        clientId: CLIENT_ID,
+        redirectUri: REDIRECT_URI,
+        authParams: {
+          issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
+          responseType: ['code'],
+          scopes: ['openid','profile','email'],
+          pkce: true
+        }
+      });
 
-    // Render the widget
-    widget.renderEl(
-      { el: '#widget-container' },
-      function (res) {
-        // with redirect flow, the widget will not return tokens here; it redirects
-        console.log('widget render success', res);
-      },
-      function (err) {
-        console.error('widget render error', err);
-        const container = document.getElementById('widget-container');
-        container.innerText = 'Error loading widget. Check console.';
-      }
-    );
+      widget.renderEl({ el: '#widget-container' },
+        function(res) { console.log('widget render success', res); },
+        function(err) { console.error('widget render error', err); document.getElementById('widget-container').innerText = 'Widget error — see console.'; }
+      );
+    }
   </script>
 </body>
 </html>
