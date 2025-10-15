@@ -52,19 +52,19 @@
       dbg('OktaSignIn loaded (fresh).');
 
       const widget = new OktaSignIn({
-        baseUrl: `https://${OKTA_DOMAIN}`,
-        clientId: CLIENT_ID,
-        redirectUri: REDIRECT_URI,
-        useClassicEngine: true,
-        authParams: {
-          issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
-          responseType: ['code'],
-          responseMode: 'query',      // FORCE redirect with code in query string
-          display: 'page',
-          scopes: ['openid','profile','email'],
-          pkce: true
-        }
-      });
+  baseUrl: `https://${OKTA_DOMAIN}`,
+  clientId: CLIENT_ID,
+  redirectUri: REDIRECT_URI,
+  // useClassicEngine: false, // remove or set false so widget can use OIE
+  authParams: {
+    issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
+    responseType: ['code'],
+    scopes: ['openid','profile','email'],
+    pkce: true
+    // responseMode left to widget default (okta_post_message for OIE)
+  }
+});
+
 
       if (widget.settings && widget.settings.authParams) {
         dbg('Widget authParams:', widget.settings.authParams);
