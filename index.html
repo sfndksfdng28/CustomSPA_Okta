@@ -32,6 +32,7 @@
         baseUrl: `https://${OKTA_DOMAIN}`,
         clientId: CLIENT_ID,
         redirectUri: REDIRECT_URI,
+        useClassicEngine: true,
         authParams: {
           issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
           responseType: ['code'],
