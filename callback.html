@@ -1,43 +1,57 @@
+<!-- callback.html -->
 <!doctype html>
-<html>
-<head><meta charset="utf-8"/><title>Callback - Okta</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Callback</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>body{font-family: Arial, sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}#msg{width:80%;text-align:center}</style>
+</head>
 <body>
-  <h1>Auth callback</h1>
-  <div id="status">Processing...</div>
-  <pre id="output"></pre>
+  <div id="msg">Signing you in…</div>
 
-  <script src="https://global.oktacdn.com/okta-signin-widget/5.7.0/js/okta-sign-in.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@okta/okta-auth-js@7.8.0/dist/okta-auth-js.min.js"></script>
   <script>
-    const OKTA_DOMAIN = "https://trial-4702613.okta.com"; // replace
-    const CLIENT_ID = "0oawflwp5euQKcPIN697";                 // replace
-    const ISSUER = OKTA_DOMAIN + '/oauth2/default';
+    (async function() {
+      try {
+        const OKTA_DOMAIN = 'trial-4702613.okta.com'; // e.g. dev-123456.okta.com
+        const CLIENT_ID = '0oawflwp5euQKcPIN697';
+        const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html';
 
-    const signIn = new OktaSignIn({
-      baseUrl: OKTA_DOMAIN,
-      clientId: CLIENT_ID,
-      redirectUri: window.location.origin + '/callback.html',
-      authParams: { issuer: ISSUER, responseType: ['code'], scopes: ['openid','profile','email'] }
-    });
+        const authClient = new OktaAuth({
+          issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
+          clientId: CLIENT_ID,
+          redirectUri: REDIRECT_URI,
+          tokenManager: {
+            storage: 'localStorage'
+          }
+        });
 
-    // The widget's authClient can parse tokens from the URL after redirect.
-    const authClient = signIn.authClient;
+        // Parse the url and exchange the authorization code for tokens
+        const tokens = await authClient.token.parseFromUrl();
+        // parseFromUrl() returns an object with tokens. For code flow, tokens may be on tokens.tokens
+        // If parseFromUrl returns tokens directly:
+        if (tokens.tokens) {
+          Object.values(tokens.tokens).forEach(token => {
+            // tokenManager expects accessToken/idToken
+            if (token.accessToken) authClient.tokenManager.add('accessToken', token);
+            if (token.idToken) authClient.tokenManager.add('idToken', token);
+            if (token.refreshToken) authClient.tokenManager.add('refreshToken', token);
+          });
+        } else {
+          // fallback for some returns
+          if (tokens.accessToken) authClient.tokenManager.add('accessToken', tokens);
+          if (tokens.idToken) authClient.tokenManager.add('idToken', tokens);
+        }
 
-    authClient.token.parseFromUrl()
-      .then(function(tokenResponse) {
-        // For code flow with PKCE, modern Okta SDKs will exchange code for tokens automatically.
-        // tokenResponse will contain tokens if using implicit; for explicit PKCE exchange use token.exchangeCodeForTokens()
-        document.getElementById('status').textContent = 'Parsed token response. Opening userinfo...';
-        // Try to get userinfo if we have an access token
-        const accessToken = tokenResponse.tokens?.accessToken?.accessToken || tokenResponse.accessToken;
-        const idToken = tokenResponse.tokens?.idToken?.idToken || tokenResponse.idToken;
-        const out = { idToken, accessToken };
-        document.getElementById('output').textContent = JSON.stringify(out, null, 2);
-      })
-      .catch(function(err) {
-        document.getElementById('status').textContent = 'Error parsing tokens: see console';
-        console.error(err);
-        document.getElementById('output').textContent = String(err);
-      });
+        document.getElementById('msg').innerText = 'Signed in! Redirecting...';
+        // Customize: redirect to app home or call your API
+        window.location.replace('/');
+      } catch (err) {
+        console.error('Callback error', err);
+        document.getElementById('msg').innerText = 'Sign-in failed. Check console for details.';
+      }
+    })();
   </script>
 </body>
 </html>
