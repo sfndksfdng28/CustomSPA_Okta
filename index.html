@@ -54,17 +54,20 @@
       dbg('OktaSignIn loaded OK. Version check (if available):', OktaSignIn.prototype && OktaSignIn.prototype.version ? OktaSignIn.prototype.version : 'version unknown');
 
       const widget = new OktaSignIn({
-        baseUrl: `https://${OKTA_DOMAIN}`,
-        clientId: CLIENT_ID,
-        redirectUri: REDIRECT_URI,
-        useClassicEngine: true,   // <<-- FORCE Classic Engine (avoids /interact requirement)
-        authParams: {
-          issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
-          responseType: ['code'],
-          scopes: ['openid','profile','email'],
-          pkce: true
-        }
-      });
+  baseUrl: `https://${OKTA_DOMAIN}`,
+  clientId: CLIENT_ID,
+  redirectUri: REDIRECT_URI,                 // must exactly match Okta app
+  useClassicEngine: true,                    // keep this if you need Classic behavior
+  authParams: {
+    issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
+    responseType: ['code'],
+    responseMode: 'query',                   // <-- force browser redirect to callback.html
+    display: 'page',                         // <-- ensure a full-page redirect flow
+    scopes: ['openid', 'profile', 'email'],
+    pkce: true
+  }
+});
+
 
       dbg('Rendering widget with config', {
         baseUrl: `https://${OKTA_DOMAIN}`,
