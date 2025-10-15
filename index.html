@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Okta Sign-In Widget Demo (Vercel)</title>
+  <script src="https://global.oktacdn.com/okta-signin-widget/5.7.0/js/okta-sign-in.min.js"></script>
+  <link href="https://global.oktacdn.com/okta-signin-widget/5.7.0/css/okta-sign-in.min.css" rel="stylesheet"/>
+  <style>body{font-family:system-ui,Segoe UI,Roboto,sans-serif;padding:16px} #profile{margin-top:20px}</style>
+</head>
+<body>
+  <h1>Okta Sign-In Widget Demo (Vercel)</h1>
+  <div id="widget-container"></div>
+  <div id="profile" style="display:none">
+    <h2>User Info</h2>
+    <pre id="userinfo"></pre>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <script>
+    // Replace these with your values
+    const OKTA_DOMAIN = "https://dev-123456.okta.com"; // your Okta domain
+    const CLIENT_ID = "0oabEXAMPLEID";                 // your SPA Client ID
+    const REDIRECT_URI = window.location.origin + '/callback.html';
+    const ISSUER = OKTA_DOMAIN + '/oauth2/default';
+
+    const signIn = new OktaSignIn({
+      baseUrl: OKTA_DOMAIN,
+      clientId: CLIENT_ID,
+      redirectUri: REDIRECT_URI,
+      authParams: {
+        issuer: ISSUER,
+        scopes: ['openid','profile','email'],
+        responseType: ['code']
+      }
+    });
+
+    signIn.renderEl({ el: '#widget-container' },
+      function (res) {
+        // For the Authorization Code + PKCE flow the widget will redirect to callback.
+        console.log('widget result', res);
+      },
+      function (err) {
+        console.error(err);
+      }
+    );
+
+    // Logout (redirect to Okta signout)
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      window.location.href = `${ISSUER}/v1/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+    });
+  </script>
+</body>
+</html>
