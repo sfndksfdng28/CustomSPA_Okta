@@ -10,7 +10,7 @@
   <script>
     const OKTA_DOMAIN = "https://trial-4702613.okta.com"; // replace
     const CLIENT_ID = "0oawflwp5euQKcPIN697";                 // replace
-    const ISSUER = "https://trial-4702613.okta.com" + '/oauth2/default';
+    const ISSUER = OKTA_DOMAIN + '/oauth2/default';
 
     const signIn = new OktaSignIn({
       baseUrl: OKTA_DOMAIN,
