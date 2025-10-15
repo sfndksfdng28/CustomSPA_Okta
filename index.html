@@ -21,7 +21,7 @@
     const OKTA_DOMAIN = "https://trial-4702613.okta.com"; // your Okta domain
     const CLIENT_ID = "0oawflwp5euQKcPIN697";                 // your SPA Client ID
     const REDIRECT_URI = window.location.origin + '/callback.html';
-    const ISSUER = 'https://trial-4702613.okta.com' + '/oauth2/default';
+    const ISSUER = OKTA_DOMAIN + '/oauth2/default';
 
     const signIn = new OktaSignIn({
       baseUrl: OKTA_DOMAIN,
