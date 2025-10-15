@@ -2,93 +2,122 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Okta Widget Debug</title>
+  <title>Okta Widget Force-Redirect Debug</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-sign-in.min.css" rel="stylesheet" />
   <link href="https://global.oktacdn.com/okta-signin-widget/7.35.3/css/okta-theme.css" rel="stylesheet" />
   <style>
     body{font-family:Arial,Helvetica,sans-serif;padding:24px}
-    #widget-wrap{max-width:420px;margin:32px auto}
+    #widget-wrap{max-width:480px;margin:32px auto}
     #status{margin-bottom:12px;color:#333}
-    .error{color:#b00020}
     pre.debug{background:#f6f8fa;padding:8px;border-radius:6px;overflow:auto;max-height:220px}
+    .error{color:#b00020}
   </style>
 </head>
 <body>
   <div id="widget-wrap">
-    <div id="status">Loading widget…</div>
+    <div id="status">Initializing widget…</div>
     <div id="widget-container">Loading widget…</div>
     <div id="errors"></div>
-    <h4>Debug log</h4>
+    <h4>Debug</h4>
     <pre id="log" class="debug"></pre>
   </div>
 
-  <!-- Widget JS (global OktaSignIn) -->
-  <script src="https://cdn.jsdelivr.net/npm/@okta/okta-signin-widget@7.35.3/dist/js/okta-sign-in.min.js"></script>
-  <!-- Okta Auth JS (used on callback) -->
+  <!-- Force fresh copy from CDN with timestamp to bust caches -->
+  <script>
+    (function() {
+      const t = Date.now();
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@okta/okta-signin-widget@7.35.3/dist/js/okta-sign-in.min.js?_=' + t;
+      script.onload = initWidget;
+      script.onerror = function() {
+        document.getElementById('errors').innerHTML = '<div class="error">Failed to load widget script. Check network/CSP.</div>';
+        console.error('Failed to load okta-sign-in.min.js');
+      };
+      document.head.appendChild(script);
+    })();
+  </script>
+
+  <!-- Okta Auth JS for callback (loaded separately) -->
   <script src="https://cdn.jsdelivr.net/npm/@okta/okta-auth-js@7.8.0/dist/okta-auth-js.min.js"></script>
 
   <script>
     const logEl = document.getElementById('log');
     function dbg(msg, obj) {
-      const line = (typeof obj === 'undefined') ? msg : `${msg} ${JSON.stringify(obj, null, 2)}`;
-      logEl.textContent += (new Date().toISOString() + ' - ' + line + '\n');
+      logEl.textContent += new Date().toISOString() + ' - ' + msg + (obj ? ' ' + JSON.stringify(obj, null, 2) : '') + '\n';
       console.log(msg, obj || '');
     }
     function showError(text) {
       document.getElementById('errors').innerHTML = '<div class="error">' + text + '</div>';
-      dbg('ERROR:' + text);
+      dbg('ERROR: ' + text);
     }
 
-    // Replace these values with your real values
-    const OKTA_DOMAIN = 'trial-4702613.okta.com'; // e.g. dev-123456.okta.com
+    // <--- EDIT THESE VALUES to match your Okta app EXACTLY --->
+    const OKTA_DOMAIN = 'trial-4702613.okta.com';     // example from your logs
     const CLIENT_ID = '0oawflwp5euQKcPIN697';
-    const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html'; // exact value registered in Okta
+    const REDIRECT_URI = 'https://custom-spa-okta.vercel.app/callback.html';
+    // ----------------------------------------------------------------
 
-    dbg('Checking OktaSignIn global...');
-    if (typeof OktaSignIn === 'undefined') {
-      showError('OktaSignIn did not load. Check Network tab for okta-sign-in.min.js (404/CSP).');
-      dbg('OktaSignIn is undefined — likely CDN failed or CSP blocked it.');
-      document.getElementById('status').innerText = 'Widget failed to load.';
-    } else {
-      dbg('OktaSignIn loaded OK. Version check (if available):', OktaSignIn.prototype && OktaSignIn.prototype.version ? OktaSignIn.prototype.version : 'version unknown');
+    function initWidget() {
+      if (typeof OktaSignIn === 'undefined') {
+        showError('OktaSignIn global missing after CDN load. Check network/CSP.');
+        return;
+      }
+      dbg('OktaSignIn loaded (fresh).');
 
+      // Force classic + redirect-based flow
       const widget = new OktaSignIn({
-  baseUrl: `https://${OKTA_DOMAIN}`,
-  clientId: CLIENT_ID,
-  redirectUri: REDIRECT_URI,                 // must exactly match Okta app
-  useClassicEngine: true,                    // keep this if you need Classic behavior
-  authParams: {
-    issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
-    responseType: ['code'],
-    responseMode: 'query',                   // <-- force browser redirect to callback.html
-    display: 'page',                         // <-- ensure a full-page redirect flow
-    scopes: ['openid', 'profile', 'email'],
-    pkce: true
-  }
-});
-
-
-      dbg('Rendering widget with config', {
         baseUrl: `https://${OKTA_DOMAIN}`,
         clientId: CLIENT_ID,
         redirectUri: REDIRECT_URI,
-        issuer: `https://${OKTA_DOMAIN}/oauth2/default`
+        useClassicEngine: true,
+        authParams: {
+          issuer: `https://${OKTA_DOMAIN}/oauth2/default`,
+          responseType: ['code'],
+          responseMode: 'query',      // FORCE redirect with code in query string
+          display: 'page',            // full page redirect
+          scopes: ['openid','profile','email'],
+          pkce: true
+        }
       });
+
+      // Hook into widget to log authorize url (works with this widget version)
+      if (widget.settings && widget.settings.authParams) {
+        dbg('Widget authParams:', widget.settings.authParams);
+      }
+
+      // Monkey-patch to capture authorize request URL if possible
+      // (This prints URL just before render triggers auth flow)
+      const origGetAuthorizeUrl = widget.getAuthorizeUrl && widget.getAuthorizeUrl.bind(widget);
+      if (origGetAuthorizeUrl) {
+        widget.getAuthorizeUrl = function() {
+          try {
+            const url = origGetAuthorizeUrl();
+            dbg('Authorize URL about to be used:', url);
+            return url;
+          } catch (e) {
+            dbg('Error while getting authorize URL', e.message);
+            return origGetAuthorizeUrl();
+          }
+        };
+      } else {
+        dbg('widget.getAuthorizeUrl not present (will inspect network).');
+      }
 
       widget.renderEl(
         { el: '#widget-container' },
-        function (res) {
+        function(res) {
           dbg('widget.renderEl success', res);
-          document.getElementById('status').innerText = 'Widget loaded — show login form.';
+          document.getElementById('status').innerText = 'Widget loaded — sign in form visible.';
         },
-        function (err) {
+        function(err) {
           console.error('widget render error', err);
-          showError('Widget render error — see console and debug log below.');
+          showError('Widget render error — see console and debug log.');
           dbg('widget render error object', err);
           document.getElementById('status').innerText = 'Widget error — see debug info.';
         }
       );
+      dbg('Widget init complete. Try signing in now.');
     }
   </script>
 </body>
